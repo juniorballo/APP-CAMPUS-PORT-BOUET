@@ -5,6 +5,7 @@ const TODAY_STR = new Date().toISOString().split('T')[0];
 
 let state = {
     isAdmin: false,
+    adminPassword: localStorage.getItem('campus_admin_password') || 'PORTBOUETSTAKE2026',
     rating: 0,
     students: JSON.parse(localStorage.getItem('campus_students')) || [
         { id: '1', name: 'Ahui, Djiragbou Ake Moise Alvine', phone: '0798612436', parish: 'PETIT BASSAM' },
@@ -245,7 +246,6 @@ function renderAttendanceTable() {
 
     if (!tableBody) return;
 
-    // Récupère uniquement les enregistrements d'émargement de la date sélectionnée
     const dayRecords = state.attendanceRecords.filter(r => r.date === selectedDate);
     tableBody.innerHTML = '';
 
@@ -258,7 +258,6 @@ function renderAttendanceTable() {
             </tr>
         `;
     } else {
-        // Affiche uniquement les personnes qui ont émargé
         dayRecords.forEach((rec, idx) => {
             const totalParticipation = state.attendanceRecords.filter(r => r.studentId === rec.studentId).length;
             const tr = document.createElement('tr');
@@ -356,6 +355,21 @@ function handleAttendance(e) {
     if (selectedDate > TODAY_STR) {
         showCustomAlert("Date invalide", "Impossible d'émarger pour une date future.", "error");
         return;
+    }
+
+    // Restriction horaire et hebdomadaire pour l'émargement des étudiants et amis
+    if (!state.isAdmin) {
+        const dayOfWeek = now.getDay(); // 3 = Mercredi
+        const currentHour = now.getHours();
+
+        if (dayOfWeek !== 3 || currentHour < 18 || currentHour >= 22) {
+            showCustomAlert(
+                "Émargement fermé",
+                "L'émargement n'est autorisé que les mercredis entre 18H et 22H.",
+                "warning"
+            );
+            return;
+        }
     }
 
     const studentId = document.getElementById('selectedStudentId').value;
@@ -742,10 +756,41 @@ function deleteAttendanceRecord(recordId) {
 }
 
 // ==========================================
-// NAVIGATION ET MODALES
+// NAVIGATION ET MODALES ADMIN & MOT DE PASSE
 // ==========================================
 function toggleAdminMode() {
-    state.isAdmin = !state.isAdmin;
+    if (state.isAdmin) {
+        state.isAdmin = false;
+        window.location.reload();
+    } else {
+        openAdminAuthModal();
+    }
+}
+
+function openAdminAuthModal() {
+    document.getElementById('adminPasswordInput').value = '';
+    document.getElementById('adminAuthModal').classList.remove('hidden');
+}
+
+function closeAdminAuthModal() {
+    document.getElementById('adminAuthModal').classList.add('hidden');
+}
+
+function handleAdminAuth(e) {
+    e.preventDefault();
+    const inputPwd = document.getElementById('adminPasswordInput').value;
+
+    if (inputPwd === state.adminPassword) {
+        state.isAdmin = true;
+        closeAdminAuthModal();
+        applyAdminUIState();
+        showCustomAlert("Accès Autorisé", "Vous êtes connecté en tant qu'administrateur.", "success");
+    } else {
+        showCustomAlert("Mot de Passe Incorrect", "Le mot de passe administrateur est incorrect.", "error");
+    }
+}
+
+function applyAdminUIState() {
     const btn = document.getElementById('adminToggle');
     const adminCols = document.querySelectorAll('.admin-col, .admin-only');
 
@@ -763,6 +808,46 @@ function toggleAdminMode() {
     renderProfilesTable();
     renderCoursesGrid();
     renderMediaGrid();
+}
+
+function openChangePasswordModal() {
+    document.getElementById('currentPasswordInput').value = '';
+    document.getElementById('newPasswordInput').value = '';
+    document.getElementById('confirmPasswordInput').value = '';
+    document.getElementById('changePasswordModal').classList.remove('hidden');
+}
+
+function closeChangePasswordModal() {
+    document.getElementById('changePasswordModal').classList.add('hidden');
+}
+
+function handleChangePassword(e) {
+    e.preventDefault();
+    if (!state.isAdmin) return;
+
+    const currentPwd = document.getElementById('currentPasswordInput').value;
+    const newPwd = document.getElementById('newPasswordInput').value;
+    const confirmPwd = document.getElementById('confirmPasswordInput').value;
+
+    if (currentPwd !== state.adminPassword) {
+        showCustomAlert("Erreur", "Le mot de passe actuel est incorrect.", "error");
+        return;
+    }
+
+    if (newPwd.trim().length === 0) {
+        showCustomAlert("Erreur", "Le nouveau mot de passe ne peut pas être vide.", "warning");
+        return;
+    }
+
+    if (newPwd !== confirmPwd) {
+        showCustomAlert("Erreur", "Les nouveaux mots de passe ne correspondent pas.", "error");
+        return;
+    }
+
+    state.adminPassword = newPwd;
+    localStorage.setItem('campus_admin_password', newPwd);
+    closeChangePasswordModal();
+    showCustomAlert("Succès", "Mot de passe administrateur modifié avec succès !", "success");
 }
 
 function switchTab(tabId) {
@@ -923,7 +1008,6 @@ function updateCharts() {
     document.getElementById('kpiTotalStudents').textContent = totalStudents;
     document.getElementById('kpiTotalFriends').textContent = totalFriends;
 
-    // Calculs taux global et moyenne des notes
     const totalPossible = totalStudents * 40;
     const globalRate = totalPossible > 0 ? Math.round((state.attendanceRecords.length / totalPossible) * 100) : 0;
     document.getElementById('kpiGlobalRate').textContent = `${globalRate}%`;
@@ -972,7 +1056,6 @@ function renderProgressionTable() {
 
     tbody.innerHTML = '';
 
-    // Filtrage des étudiants par nom et paroisse
     let filteredStudents = state.students.filter(s => {
         const matchesName = s.name.toLowerCase().includes(nameSearchQuery);
         const matchesParish = (parishFilter === 'all') || (s.parish === parishFilter);
@@ -991,14 +1074,13 @@ function renderProgressionTable() {
     }
 
     filteredStudents.forEach(s => {
-        // Filtrage des présences de l'étudiant selon le cours sélectionné
         let presencesList = state.attendanceRecords.filter(r => r.studentId === s.id);
         if (courseFilter !== 'all') {
             presencesList = presencesList.filter(r => r.course === courseFilter);
         }
 
         const presences = presencesList.length;
-        const totalPossible = 40; // Séances prévues fixées à 40
+        const totalPossible = 40;
         const rate = Math.min(Math.round((presences / totalPossible) * 100), 100);
 
         const tr = document.createElement('tr');
