@@ -1,0 +1,9 @@
+{
+  "short_name": "CampusPB",
+  "name": "Campus Port-Bouët - Émargement",
+  "icons": [],
+  "start_url": ".",
+  "background_color": "#1e3a8a",
+  "theme_color": "#1e3a8a",
+  "display": "standalone"
+}
