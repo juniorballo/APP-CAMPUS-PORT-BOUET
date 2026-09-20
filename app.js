@@ -4,8 +4,7 @@
 const TODAY_STR = new Date().toISOString().split('T')[0];
 
 let state = {
-    isAdmin: false,
-    adminPassword: localStorage.getItem('campus_admin_password') || 'PORTBOUETSTAKE2026',
+    isAdmin: localStorage.getItem('campus_is_admin') === 'true',
     rating: 0,
     students: JSON.parse(localStorage.getItem('campus_students')) || [
         { id: '1', name: 'Ahui, Djiragbou Ake Moise Alvine', phone: '0798612436', parish: 'PETIT BASSAM' },
@@ -196,8 +195,74 @@ let state = {
     documents: JSON.parse(localStorage.getItem('campus_documents')) || []
 };
 
+// URL de votre API backend
+const API_URL = 'http://localhost:3000';
+
 let parishChartInstance = null;
 let coursesChartInstance = null;
+
+// ==========================================
+// AUTHENTIFICATION SÉCURISÉE VIA LE SERVEUR
+// ==========================================
+async function handleAdminAuth(e) {
+    e.preventDefault();
+    const inputPwd = document.getElementById('adminPasswordInput').value;
+
+    try {
+        const response = await fetch(`${API_URL}/api/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password: inputPwd })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            state.isAdmin = true;
+            localStorage.setItem('campus_is_admin', 'true');
+            closeAdminAuthModal();
+            applyAdminUIState();
+            showCustomAlert("Accès Autorisé", "Vous êtes connecté en tant qu'administrateur.", "success");
+        } else {
+            showCustomAlert("Accès Refusé", data.message || "Mot de passe incorrect.", "error");
+        }
+    } catch (error) {
+        showCustomAlert("Erreur de connexion", "Impossible de joindre le serveur d'authentification.", "error");
+    }
+}
+
+async function handleChangePassword(e) {
+    e.preventDefault();
+    if (!state.isAdmin) return;
+
+    const currentPwd = document.getElementById('currentPasswordInput').value;
+    const newPwd = document.getElementById('newPasswordInput').value;
+    const confirmPwd = document.getElementById('confirmPasswordInput').value;
+
+    if (newPwd !== confirmPwd) {
+        showCustomAlert("Erreur", "Les nouveaux mots de passe ne correspondent pas.", "error");
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_URL}/api/auth/change-password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ currentPassword: currentPwd, newPassword: newPwd })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            closeChangePasswordModal();
+            showCustomAlert("Succès", "Mot de passe administrateur modifié avec succès !", "success");
+        } else {
+            showCustomAlert("Erreur", data.message || "Impossible de modifier le mot de passe.", "error");
+        }
+    } catch (error) {
+        showCustomAlert("Erreur", "Erreur de communication avec le serveur.", "error");
+    }
+}
 
 // ==========================================
 // INITIALISATION
@@ -205,6 +270,7 @@ let coursesChartInstance = null;
 document.addEventListener('DOMContentLoaded', () => {
     initDatePicker();
     populateCourseSelects();
+    applyAdminUIState();
     renderAttendanceTable();
     renderProfilesTable();
     renderCoursesGrid();
@@ -357,9 +423,8 @@ function handleAttendance(e) {
         return;
     }
 
-    // Restriction horaire et hebdomadaire pour l'émargement des étudiants et amis
     if (!state.isAdmin) {
-        const dayOfWeek = now.getDay(); // 3 = Mercredi
+        const dayOfWeek = now.getDay();
         const currentHour = now.getHours();
 
         if (dayOfWeek !== 3 || currentHour < 18 || currentHour >= 22) {
@@ -761,6 +826,7 @@ function deleteAttendanceRecord(recordId) {
 function toggleAdminMode() {
     if (state.isAdmin) {
         state.isAdmin = false;
+        localStorage.removeItem('campus_is_admin');
         window.location.reload();
     } else {
         openAdminAuthModal();
@@ -776,31 +842,21 @@ function closeAdminAuthModal() {
     document.getElementById('adminAuthModal').classList.add('hidden');
 }
 
-function handleAdminAuth(e) {
-    e.preventDefault();
-    const inputPwd = document.getElementById('adminPasswordInput').value;
-
-    if (inputPwd === state.adminPassword) {
-        state.isAdmin = true;
-        closeAdminAuthModal();
-        applyAdminUIState();
-        showCustomAlert("Accès Autorisé", "Vous êtes connecté en tant qu'administrateur.", "success");
-    } else {
-        showCustomAlert("Mot de Passe Incorrect", "Le mot de passe administrateur est incorrect.", "error");
-    }
-}
-
 function applyAdminUIState() {
     const btn = document.getElementById('adminToggle');
     const adminCols = document.querySelectorAll('.admin-col, .admin-only');
 
     if (state.isAdmin) {
-        btn.textContent = "Mode Admin (Actif)";
-        btn.className = "text-xs bg-red-600 hover:bg-red-700 text-white font-bold px-3 py-1.5 rounded transition shadow";
+        if (btn) {
+            btn.textContent = "Mode Admin (Actif)";
+            btn.className = "text-xs bg-red-600 hover:bg-red-700 text-white font-bold px-3 py-1.5 rounded transition shadow";
+        }
         adminCols.forEach(el => el.classList.remove('hidden'));
     } else {
-        btn.textContent = "Mode Étudiant";
-        btn.className = "text-xs bg-yellow-500 hover:bg-yellow-600 text-blue-950 font-bold px-3 py-1.5 rounded transition shadow";
+        if (btn) {
+            btn.textContent = "Mode Étudiant";
+            btn.className = "text-xs bg-yellow-500 hover:bg-yellow-600 text-blue-950 font-bold px-3 py-1.5 rounded transition shadow";
+        }
         adminCols.forEach(el => el.classList.add('hidden'));
     }
 
@@ -819,35 +875,6 @@ function openChangePasswordModal() {
 
 function closeChangePasswordModal() {
     document.getElementById('changePasswordModal').classList.add('hidden');
-}
-
-function handleChangePassword(e) {
-    e.preventDefault();
-    if (!state.isAdmin) return;
-
-    const currentPwd = document.getElementById('currentPasswordInput').value;
-    const newPwd = document.getElementById('newPasswordInput').value;
-    const confirmPwd = document.getElementById('confirmPasswordInput').value;
-
-    if (currentPwd !== state.adminPassword) {
-        showCustomAlert("Erreur", "Le mot de passe actuel est incorrect.", "error");
-        return;
-    }
-
-    if (newPwd.trim().length === 0) {
-        showCustomAlert("Erreur", "Le nouveau mot de passe ne peut pas être vide.", "warning");
-        return;
-    }
-
-    if (newPwd !== confirmPwd) {
-        showCustomAlert("Erreur", "Les nouveaux mots de passe ne correspondent pas.", "error");
-        return;
-    }
-
-    state.adminPassword = newPwd;
-    localStorage.setItem('campus_admin_password', newPwd);
-    closeChangePasswordModal();
-    showCustomAlert("Succès", "Mot de passe administrateur modifié avec succès !", "success");
 }
 
 function switchTab(tabId) {
@@ -1005,16 +1032,22 @@ function updateCharts() {
     const totalStudents = state.students.length;
     const totalFriends = state.students.filter(s => s.parish === 'AMIS').length;
 
-    document.getElementById('kpiTotalStudents').textContent = totalStudents;
-    document.getElementById('kpiTotalFriends').textContent = totalFriends;
+    const elKpiStudents = document.getElementById('kpiTotalStudents');
+    const elKpiFriends = document.getElementById('kpiTotalFriends');
+    const elKpiRate = document.getElementById('kpiGlobalRate');
+    const elKpiRating = document.getElementById('kpiAvgRating');
+    const elKpiTopParish = document.getElementById('kpiTopParish');
+
+    if (elKpiStudents) elKpiStudents.textContent = totalStudents;
+    if (elKpiFriends) elKpiFriends.textContent = totalFriends;
 
     const totalPossible = totalStudents * 40;
     const globalRate = totalPossible > 0 ? Math.round((state.attendanceRecords.length / totalPossible) * 100) : 0;
-    document.getElementById('kpiGlobalRate').textContent = `${globalRate}%`;
+    if (elKpiRate) elKpiRate.textContent = `${globalRate}%`;
 
     const totalRatings = state.attendanceRecords.reduce((sum, r) => sum + (r.rating || 0), 0);
     const avgRating = state.attendanceRecords.length > 0 ? (totalRatings / state.attendanceRecords.length).toFixed(1) : '0.0';
-    document.getElementById('kpiAvgRating').textContent = `${avgRating} / 5 ★`;
+    if (elKpiRating) elKpiRating.textContent = `${avgRating} / 5 ★`;
 
     const parishCounts = {};
     state.students.forEach(s => { parishCounts[s.parish] = (parishCounts[s.parish] || 0) + 1; });
@@ -1027,7 +1060,7 @@ function updateCharts() {
             topParish = p;
         }
     });
-    document.getElementById('kpiTopParish').textContent = topParish;
+    if (elKpiTopParish) elKpiTopParish.textContent = topParish;
 
     parishChartInstance.data.labels = Object.keys(parishCounts);
     parishChartInstance.data.datasets[0].data = Object.values(parishCounts);

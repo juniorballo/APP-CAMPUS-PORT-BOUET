@@ -1,115 +1,132 @@
-﻿require('dotenv').config();
-const express = require('express');
+﻿const express = require('express');
 const cors = require('cors');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
-const jwt = require('jsonwebtoken');
-const path = require('path');
-const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
-const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+const sqlite3 = require('sqlite3').verbose();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware de sécurité
-app.use(helmet({
-    contentSecurityPolicy: false // Désactivé pour permettre le chargement des CDN externes
-}));
+// Clé secrète pour signer les JWT (à configurer via variable d'environnement en production)
+const JWT_SECRET = process.env.JWT_SECRET || 'votre_cle_secrete_ultra_securisee_et_complexe';
 
-app.use(cors({
-    origin: process.env.CLIENT_URL || '*',
-    methods: ['GET', 'POST', 'PUT', 'DELETE']
-}));
-
+// 1. Sécurité HTTP et middlewares globaux
+app.use(helmet()); // Sécurise les en-têtes HTTP
+app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname)));
 
-// Rate Limiter
-const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 100,
-    message: { error: "Trop de requêtes, veuillez réessayer plus tard." }
+// Limiteur de requêtes pour protéger la route de connexion contre les attaques par force brute
+const loginLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 5, // Limite chaque IP à 5 tentatives de connexion par fenêtre
+    message: { success: false, message: 'Trop de tentatives de connexion. Veuillez réessayer plus tard.' }
 });
-app.use('/api/', limiter);
 
-// Configuration S3 (Optionnelle selon les variables d'environnement)
-const s3Client = new S3Client({
-    region: process.env.AWS_REGION || 'us-east-1',
-    credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID || 'mock',
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || 'mock'
+// 2. Initialisation de la base de données SQLite (crée un fichier 'campus.db')
+const db = new sqlite3.Database('./campus.db', (err) => {
+    if (err) {
+        console.error('Erreur d\'ouverture de la base de données', err.message);
+    } else {
+        console.log('Connecté à la base de données SQLite.');
+
+        // Création de la table de configuration admin si elle n'existe pas
+        db.run(`CREATE TABLE IF NOT EXISTS admin_config (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            password_hash TEXT NOT NULL
+        )`, async (err) => {
+            if (!err) {
+                // Vérifier s'il y a un mot de passe initial, sinon créer un par défaut ('admin')
+                db.get(`SELECT * FROM admin_config WHERE id = 1`, async (err, row) => {
+                    if (!row) {
+                        const saltRounds = 10;
+                        const defaultHash = await bcrypt.hash('admin', saltRounds);
+                        db.run(`INSERT INTO admin_config (id, password_hash) VALUES (1, ?)`, [defaultHash]);
+                        console.log('Mot de passe admin initialisé par défaut ("admin") et haché.');
+                    }
+                });
+            }
+        });
     }
 });
 
-// Authentification Admin
-app.post('/api/admin/login', (req, res) => {
-    const { password } = req.body;
-    const adminPassword = process.env.ADMIN_PASSWORD || 'Campus2026!';
+// 3. Middleware de vérification du Token JWT (pour protéger les routes sensibles)
+function verifyToken(req, res, next) {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1]; // Format attendu : "Bearer <token>"
 
-    if (password === adminPassword) {
-        const token = jwt.sign(
-            { role: 'admin' },
-            process.env.JWT_SECRET || 'SecretKey',
-            { expiresIn: '12h' }
-        );
-        return res.json({ success: true, token });
+    if (!token) {
+        return res.status(401).json({ success: false, message: 'Accès refusé. Jeton d\'authentification manquant.' });
     }
 
-    return res.status(401).json({ error: 'Mot de passe incorrect' });
-});
-
-// Middleware Vérification JWT
-function verifyAdmin(req, res, next) {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) return res.status(401).json({ error: 'Accès non autorisé' });
-
-    const token = authHeader.split(' ')[1];
-    if (token === 'Bearer-Admin-Campus-Secret') return next();
-
-    try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'SecretKey');
-        if (decoded.role === 'admin') {
-            req.user = decoded;
-            return next();
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) {
+            return res.status(403).json({ success: false, message: 'Jeton invalide ou expiré.' });
         }
-        res.status(403).json({ error: 'Accès interdit' });
-    } catch (err) {
-        res.status(401).json({ error: 'Token invalide ou expiré' });
-    }
+        req.user = user;
+        next();
+    });
 }
 
-// Génération de Presigned URL S3
-app.post('/api/admin/generate-upload-url', verifyAdmin, async (req, res) => {
-    try {
-        const { fileName, fileType } = req.body;
-        const bucketName = process.env.AWS_S3_BUCKET;
+// 4. Route de connexion sécurisée
+app.post('/api/auth/login', loginLimiter, (req, res) => {
+    const { password } = req.body;
 
-        if (!bucketName || process.env.AWS_ACCESS_KEY_ID === 'mock') {
-            return res.status(501).json({ error: 'S3 non configuré. Bascule en mode stockage local/navigateur.' });
+    if (!password) {
+        return res.status(400).json({ success: false, message: 'Mot de passe requis.' });
+    }
+
+    db.get(`SELECT password_hash FROM admin_config WHERE id = 1`, async (err, row) => {
+        if (err || !row) {
+            return res.status(500).json({ success: false, message: 'Erreur serveur.' });
         }
 
-        const key = `uploads/${Date.now()}-${fileName}`;
-        const command = new PutObjectCommand({
-            Bucket: bucketName,
-            Key: key,
-            ContentType: fileType
-        });
-
-        const uploadUrl = await getSignedUrl(s3Client, command, { expiresIn: 300 });
-        const fileUrl = `https://${bucketName}.s3.${process.env.AWS_REGION || 'us-east-1'}.amazonaws.com/${key}`;
-
-        res.json({ uploadUrl, fileUrl });
-    } catch (error) {
-        console.error("Erreur S3:", error);
-        res.status(500).json({ error: "Erreur lors de la génération de l'URL d'upload" });
-    }
+        // Comparaison sécurisée du mot de passe saisi avec le hash stocké
+        const match = await bcrypt.compare(password, row.password_hash);
+        if (match) {
+            // Génération d'un jeton JWT valide pendant 2 heures
+            const token = jwt.sign({ id: 1, role: 'admin' }, JWT_SECRET, { expiresIn: '2h' });
+            res.json({ success: true, token });
+        } else {
+            res.status(401).json({ success: false, message: 'Mot de passe incorrect.' });
+        }
+    });
 });
 
-// Servir l'application Frontend
-app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index_7.html'));
+// 5. Route de changement de mot de passe sécurisée (protégée par JWT)
+app.post('/api/auth/change-password', verifyToken, (req, res) => {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+        return res.status(400).json({ success: false, message: 'Ancien et nouveau mot de passe requis.' });
+    }
+
+    db.get(`SELECT password_hash FROM admin_config WHERE id = 1`, async (err, row) => {
+        if (err || !row) {
+            return res.status(500).json({ success: false, message: 'Erreur serveur.' });
+        }
+
+        // Vérification de l'ancien mot de passe
+        const match = await bcrypt.compare(currentPassword, row.password_hash);
+        if (match) {
+            const saltRounds = 10;
+            const newHash = await bcrypt.hash(newPassword, saltRounds);
+
+            // Mise à jour dans la base de données SQLite
+            db.run(`UPDATE admin_config SET password_hash = ? WHERE id = 1`, [newHash], (updateErr) => {
+                if (updateErr) {
+                    res.status(500).json({ success: false, message: 'Erreur lors de la mise à jour.' });
+                } else {
+                    res.json({ success: true, message: 'Mot de passe modifié avec succès.' });
+                }
+            });
+        } else {
+            res.status(400).json({ success: false, message: 'Ancien mot de passe incorrect.' });
+        }
+    });
 });
 
 app.listen(PORT, () => {
-    console.log(`Serveur Campus Port-Bouët démarré sur le port ${PORT}`);
+    console.log(`Serveur sécurisé démarré sur http://localhost:${PORT}`);
 });
