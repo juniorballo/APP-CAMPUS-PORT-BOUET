@@ -8,7 +8,7 @@ app.use(express.urlencoded({ extended: true }));
 
 const DATA_FILE = path.join(__dirname, "data.json");
 if (!fs.existsSync(DATA_FILE)) {
-    fs.writeFileSync(DATA_FILE, JSON.stringify({ students: [], attendance: [], courses: [] }, null, 2));
+    fs.writeFileSync(DATA_FILE, JSON.stringify({ students: [], attendance: [], courses: ["Doctrine & Alliances", "Le Livre de Mormon", "Histoire de l Eglise"] }, null, 2));
 }
 
 app.get("/api/data", (req, res) => {

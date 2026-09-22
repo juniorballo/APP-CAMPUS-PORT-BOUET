@@ -1,6 +1,5 @@
 let appData = { students: [], attendance: [], courses: ["Doctrine & Alliances", "Le Livre de Mormon", "Histoire de l Eglise"] };
 let isAdmin = localStorage.getItem("campus_is_admin") === "true";
-let currentRating = 3;
 
 async function loadData() {
     try {
@@ -13,18 +12,6 @@ async function loadData() {
         console.log("Mode local / Erreur chargement API", e);
     }
     updateUI();
-}
-
-async function saveData() {
-    try {
-        await fetch("/api/data", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(appData)
-        });
-    } catch (e) {
-        console.error("Erreur sauvegarde", e);
-    }
 }
 
 function switchTab(tabId) {
