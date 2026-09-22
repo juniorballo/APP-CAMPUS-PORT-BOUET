@@ -1,47 +1,74 @@
-const express = require("express");
-const fs = require("fs");
-const path = require("path");
-const app = express();
+let appData = { students: [], attendance: [], courses: ["Doctrine & Alliances", "Le Livre de Mormon", "Histoire de l Eglise"] };
+let isAdmin = localStorage.getItem("campus_is_admin") === "true";
+let currentRating = 3;
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-const DATA_FILE = path.join(__dirname, "data.json");
-
-// Initialiser le fichier de données s il n existe pas
-if (!fs.existsSync(DATA_FILE)) {
-    fs.writeFileSync(DATA_FILE, JSON.stringify({ students: [], attendance: [], courses: [] }, null, 2));
+async function loadData() {
+    try {
+        const res = await fetch("/api/data");
+        if (res.ok) {
+            const data = await res.json();
+            if (data && data.courses) appData = data;
+        }
+    } catch (e) {
+        console.log("Mode local / Erreur chargement API", e);
+    }
+    updateUI();
 }
 
-// API: Récupérer toutes les données
-app.get("/api/data", (req, res) => {
+async function saveData() {
     try {
-        const data = JSON.parse(fs.readFileSync(DATA_FILE, "utf8"));
-        res.json(data);
-    } catch (err) {
-        res.status(500).json({ error: "Erreur de lecture des données" });
+        await fetch("/api/data", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(appData)
+        });
+    } catch (e) {
+        console.error("Erreur sauvegarde", e);
     }
-});
+}
 
-// API: Sauvegarder/Mettre à jour les données
-app.post("/api/data", (req, res) => {
-    try {
-        fs.writeFileSync(DATA_FILE, JSON.stringify(req.body, null, 2));
-        res.json({ success: true, message: "Données sauvegardées avec succès" });
-    } catch (err) {
-        res.status(500).json({ error: "Erreur d enregistrement" });
+function switchTab(tabId) {
+    document.querySelectorAll("main > section").forEach(sec => sec.classList.add("hidden"));
+    document.querySelectorAll("nav button").forEach(btn => btn.classList.remove("active-tab", "text-blue-600"));
+    
+    const targetSec = document.getElementById("sec-" + tabId);
+    const targetBtn = document.getElementById("tab-" + tabId);
+    if (targetSec) targetSec.classList.remove("hidden");
+    if (targetBtn) targetBtn.classList.add("active-tab");
+    if (typeof lucide !== "undefined") lucide.createIcons();
+}
+
+function toggleAdminMode() {
+    if (isAdmin) {
+        localStorage.removeItem("campus_is_admin");
+        isAdmin = false;
+        alert("Mode Étudiant activé.");
+        location.reload();
+    } else {
+        const pwd = prompt("Entrez le mot de passe administrateur :");
+        if (pwd === "admin123" || pwd === "campus2026") {
+            localStorage.setItem("campus_is_admin", "true");
+            isAdmin = true;
+            alert("Mode Administrateur activé !");
+            location.reload();
+        } else if (pwd !== null) {
+            alert("Mot de passe incorrect.");
+        }
     }
-});
+}
 
-// Route de statut
-app.get("/api/status", (req, res) => {
-    res.json({ status: "online", message: "API Campus Port-Bouët active" });
-});
+function updateUI() {
+    document.querySelectorAll(".admin-col, .admin-only").forEach(el => {
+        if (isAdmin) el.classList.remove("hidden");
+        else el.classList.add("hidden");
+    });
+    const adminToggleBtn = document.getElementById("adminToggle");
+    if (adminToggleBtn) {
+        adminToggleBtn.textContent = isAdmin ? "Mode Admin (Actif)" : "Mode Étudiant";
+    }
+}
 
-// Servir les fichiers statiques du frontend
-app.use(express.static(__dirname));
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Serveur démarré sur le port ${PORT}`);
+document.addEventListener("DOMContentLoaded", () => {
+    if (typeof lucide !== "undefined") lucide.createIcons();
+    loadData();
 });
