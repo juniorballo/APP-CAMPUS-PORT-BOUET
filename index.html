@@ -110,17 +110,17 @@
 
 <!-- En-tête / Navigation -->
 <header class="bg-blue-900 text-white shadow-md">
-    <div class="container mx-auto px-4 py-4 flex justify-between items-center">
-        <div class="flex items-center space-x-3">
+    <div class="container mx-auto px-4 py-4 flex flex-col md:flex-row justify-between items-center gap-4 text-center md:text-left">
+        <div class="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-3">
             <i data-lucide="graduation-cap" class="w-8 h-8 text-yellow-400"></i>
             <div>
-                <h1 class="text-xl font-bold leading-tight">Campus Port-Bouët</h1>
-                <p class="text-xs text-blue-200">Église de Jésus-Christ Des Saints Des Derniers Jours</p>
+                <h1 class="text-lg sm:text-xl font-bold leading-tight">Campus Port-Bouët</h1>
+                <p class="text-[11px] sm:text-xs text-blue-200">Église de Jésus-Christ Des Saints Des Derniers Jours</p>
             </div>
         </div>
-        <div class="flex items-center space-x-4">
-            <span class="text-sm bg-blue-800 px-3 py-1 rounded-full text-blue-100 flex items-center gap-2">
-                <i data-lucide="church" class="w-4 h-4"></i> PIEU DE SION DE PORT BOUET
+        <div class="flex flex-wrap justify-center items-center gap-2 sm:gap-3">
+            <span class="text-[11px] sm:text-xs bg-blue-800 px-2.5 py-1 rounded-full text-blue-100 flex items-center gap-1.5">
+                <i data-lucide="church" class="w-3.5 h-3.5"></i> PIEU DE SION DE PORT BOUET
             </span>
             <button id="adminToggle" onclick="toggleAdminMode()" class="text-xs bg-yellow-500 hover:bg-yellow-600 text-blue-950 font-bold px-3 py-1.5 rounded transition shadow">
                 Mode Étudiant

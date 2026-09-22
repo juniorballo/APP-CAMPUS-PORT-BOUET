@@ -190,9 +190,7 @@ let state = {
         "Les Écritures Sainte",
         "Doctrine & Alliances"
     ],
-    attendanceRecords: JSON.parse(localStorage.getItem('campus_attendance')) || [],
-    media: JSON.parse(localStorage.getItem('campus_media')) || [],
-    documents: JSON.parse(localStorage.getItem('campus_documents')) || []
+    attendanceRecords: JSON.parse(localStorage.getItem('campus_attendance')) || []
 };
 
 // URL de votre API backend
@@ -200,6 +198,51 @@ const API_URL = 'http://localhost:3000';
 
 let parishChartInstance = null;
 let coursesChartInstance = null;
+
+// ==========================================
+// GESTION DES URLS BLOB (PRÉVENTION FUITE MÉMOIRE)
+// ==========================================
+let activeBlobUrls = [];
+
+function revokeAllBlobUrls() {
+    activeBlobUrls.forEach(url => URL.revokeObjectURL(url));
+    activeBlobUrls = [];
+}
+
+// ==========================================
+// CONFIGURATION DE LA BASE DE DONNÉES INDEXEDDB (POUR LES FICHIERS VOLUMINEUX JUSQU'À 2Go)
+// ==========================================
+function openDatabase() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open("CampusPortBouetFilesDB", 1);
+
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve(request.result);
+
+        request.onupgradeneeded = (event) => {
+            const db = event.target.result;
+            if (!db.objectStoreNames.contains("documentsStore")) {
+                db.createObjectStore("documentsStore", { keyPath: "id" });
+            }
+            if (!db.objectStoreNames.contains("mediaStore")) {
+                db.createObjectStore("mediaStore", { keyPath: "id" });
+            }
+        };
+    });
+}
+
+// Fonction pour récupérer l'ensemble des éléments d'un store IndexedDB
+async function getAllFromStore(storeName) {
+    const db = await openDatabase();
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(storeName, "readonly");
+        const store = transaction.objectStore(storeName);
+        const request = store.getAll();
+
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+    });
+}
 
 // ==========================================
 // AUTHENTIFICATION SÉCURISÉE VIA LE SERVEUR
@@ -219,7 +262,8 @@ async function handleAdminAuth(e) {
 
         if (response.ok && data.success) {
             state.isAdmin = true;
-            localStorage.setItem('campus_is_admin', 'true');
+            if (data.token) {
+                }
             closeAdminAuthModal();
             applyAdminUIState();
             showCustomAlert("Accès Autorisé", "Vous êtes connecté en tant qu'administrateur.", "success");
@@ -245,10 +289,9 @@ async function handleChangePassword(e) {
     }
 
     try {
-        const response = await fetch(`${API_URL}/api/auth/change-password`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ currentPassword: currentPwd, newPassword: newPwd })
+        const response = await fetch(`${API_URL}/api/auth/change-password`, { method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ currentPassword: currentPwd, newPassword: newPwd , credentials: "include" })
         });
 
         const data = await response.json();
@@ -267,14 +310,17 @@ async function handleChangePassword(e) {
 // ==========================================
 // INITIALISATION
 // ==========================================
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     initDatePicker();
     populateCourseSelects();
     applyAdminUIState();
     renderAttendanceTable();
     renderProfilesTable();
-    renderCoursesGrid();
-    renderMediaGrid();
+
+    // Chargement asynchrone des fichiers depuis IndexedDB
+    await renderCoursesGrid();
+    await renderMediaGrid();
+
     initCharts();
 
     document.addEventListener('click', (e) => {
@@ -598,9 +644,9 @@ function saveStudentEdit(e) {
 }
 
 // ==========================================
-// PUBLICATION ET GESTION DES CONTENUS (PDF / MEDIAS)
+// PUBLICATION ET GESTION DES CONTENUS (INDEXEDDB - JUSQU'À 2Go)
 // ==========================================
-function handleUploadContent(e) {
+async function handleUploadContent(e) {
     e.preventDefault();
     if (!state.isAdmin) {
         showCustomAlert("Accès refusé", "Seul l'administrateur peut publier du contenu.", "error");
@@ -617,133 +663,176 @@ function handleUploadContent(e) {
     }
 
     const file = fileInput.files[0];
+    const MAX_SIZE = 2 * 1024 * 1024 * 1024; // 2 Go
 
-    if (file.size > 5 * 1024 * 1024) {
+    if (file.size > MAX_SIZE) {
         showCustomAlert(
             "Fichier trop lourd",
-            "Le fichier dépasse 5 Mo. La mémoire locale ('localStorage') du navigateur ne peut pas enregistrer de gros fichiers.",
+            "Le fichier dépasse la limite maximale autorisée de 2 Go.",
             "warning"
         );
         return;
     }
 
-    const reader = new FileReader();
+    const storeName = (category === 'document' || file.type === 'application/pdf') ? "documentsStore" : "mediaStore";
 
-    reader.onload = function (event) {
-        try {
-            const fileUrl = event.target.result;
-            const newItem = {
-                id: Date.now(),
-                title: title,
-                date: new Date().toLocaleDateString('fr-FR'),
-                url: fileUrl,
-                type: file.type
-            };
-
-            if (category === 'document' || file.type === 'application/pdf') {
-                state.documents.unshift(newItem);
-                localStorage.setItem('campus_documents', JSON.stringify(state.documents));
-                renderCoursesGrid();
-            } else {
-                state.media.unshift(newItem);
-                localStorage.setItem('campus_media', JSON.stringify(state.media));
-                renderMediaGrid();
-            }
-
-            closeUploadModal();
-            showCustomAlert("Succès", "Le contenu a été publié avec succès !", "success");
-        } catch (error) {
-            showCustomAlert("Erreur de stockage", "Espace mémoire local saturé. Impossible d'enregistrer ce fichier.", "error");
-        }
+    const newItem = {
+        id: Date.now(),
+        title: title,
+        date: new Date().toLocaleDateString('fr-FR'),
+        fileBlob: file, // Stockage direct du Blob/File sans conversion en Base64
+        type: file.type
     };
 
-    reader.readAsDataURL(file);
+    try {
+        const db = await openDatabase();
+        const transaction = db.transaction(storeName, "readwrite");
+        const store = transaction.objectStore(storeName);
+
+        store.add(newItem);
+
+        transaction.oncomplete = async () => {
+            closeUploadModal();
+            showCustomAlert("Succès", "Le fichier a été stocké avec succès dans la base locale !", "success");
+
+            if (storeName === "documentsStore") {
+                await renderCoursesGrid();
+            } else {
+                await renderMediaGrid();
+            }
+        };
+
+        transaction.onerror = () => {
+            showCustomAlert("Erreur de stockage", "Impossible d'enregistrer le fichier. Espace disque insuffisant ou quota dépassé.", "error");
+        };
+
+    } catch (error) {
+        console.error(error);
+        showCustomAlert("Erreur", "Une erreur est survenue lors de l'accès à IndexedDB.", "error");
+    }
 }
 
-function deleteDocument(docId) {
+async function deleteDocument(docId) {
     if (!state.isAdmin) return;
     if (confirm("Voulez-vous supprimer ce support de cours ?")) {
-        state.documents = state.documents.filter(d => d.id !== docId);
-        localStorage.setItem('campus_documents', JSON.stringify(state.documents));
-        renderCoursesGrid();
-        showCustomAlert("Suppression", "Le support a été supprimé.", "success");
+        try {
+            const db = await openDatabase();
+            const transaction = db.transaction("documentsStore", "readwrite");
+            transaction.objectStore("documentsStore").delete(docId);
+
+            transaction.oncomplete = async () => {
+                await renderCoursesGrid();
+                showCustomAlert("Suppression", "Le support a été supprimé.", "success");
+            };
+        } catch (error) {
+            showCustomAlert("Erreur", "Impossible de supprimer le document.", "error");
+        }
     }
 }
 
-function deleteMedia(mediaId) {
+async function deleteMedia(mediaId) {
     if (!state.isAdmin) return;
     if (confirm("Voulez-vous supprimer ce contenu média ?")) {
-        state.media = state.media.filter(m => m.id !== mediaId);
-        localStorage.setItem('campus_media', JSON.stringify(state.media));
-        renderMediaGrid();
-        showCustomAlert("Suppression", "Le contenu média a été supprimé.", "success");
+        try {
+            const db = await openDatabase();
+            const transaction = db.transaction("mediaStore", "readwrite");
+            transaction.objectStore("mediaStore").delete(mediaId);
+
+            transaction.oncomplete = async () => {
+                await renderMediaGrid();
+                showCustomAlert("Suppression", "Le contenu média a été supprimé.", "success");
+            };
+        } catch (error) {
+            showCustomAlert("Erreur", "Impossible de supprimer le média.", "error");
+        }
     }
 }
 
-function renderCoursesGrid() {
+async function renderCoursesGrid() {
     const grid = document.getElementById('coursesGrid');
     if (!grid) return;
 
-    if (state.documents.length === 0) {
+    let documents = [];
+    try {
+        documents = await getAllFromStore("documentsStore");
+    } catch (e) {
+        console.error("Erreur de lecture des documents", e);
+    }
+
+    if (documents.length === 0) {
         grid.innerHTML = `<p class="text-xs text-gray-500 col-span-3 text-center py-8">Aucun support de cours publié.</p>`;
         return;
     }
 
-    grid.innerHTML = state.documents.map(doc => `
-        <div class="bg-white p-4 rounded-lg border shadow-sm flex flex-col justify-between relative">
-            ${state.isAdmin ? `
-                <button onclick="deleteDocument(${doc.id})" class="absolute top-2 right-2 z-10 text-red-500 hover:text-red-700 p-1" title="Supprimer">
-                    <i data-lucide="trash-2" class="w-4 h-4"></i>
-                </button>
-            ` : ''}
-            <div>
-                <div class="flex items-center gap-2 text-blue-600 mb-2">
-                    <i data-lucide="file-text" class="w-6 h-6"></i>
-                    <h3 class="font-bold text-sm text-gray-800 pr-6">${escapeHtml(doc.title)}</h3>
-                </div>
-                <p class="text-xs text-gray-400 mb-3">Ajouté le ${doc.date}</p>
-                
-                <div class="w-full h-96 bg-gray-100 rounded border mb-3 overflow-hidden">
-                    <iframe src="${doc.url}#view=FitH&toolbar=0" class="w-full h-full border-0"></iframe>
-                </div>
-            </div>
+    grid.innerHTML = documents.map(doc => {
+        const fileUrl = URL.createObjectURL(doc.fileBlob);
+        activeBlobUrls.push(fileUrl); // Suivi de l'URL pour éviter la fuite mémoire
 
-            <div class="flex gap-2">
-                <a href="${doc.url}" target="_blank" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-2 text-center rounded text-xs flex justify-center items-center gap-1 transition">
-                    <i data-lucide="eye" class="w-4 h-4"></i> Plein écran
-                </a>
-                <a href="${doc.url}" download="${escapeHtml(doc.title)}.pdf" class="flex-1 bg-blue-50 text-blue-600 hover:bg-blue-100 font-semibold py-2 text-center rounded text-xs flex justify-center items-center gap-1 transition">
-                    <i data-lucide="download" class="w-4 h-4"></i> Télécharger
-                </a>
+        return `
+            <div class="bg-white p-4 rounded-lg border shadow-sm flex flex-col justify-between relative">
+                ${state.isAdmin ? `
+                    <button onclick="deleteDocument(${doc.id})" class="absolute top-2 right-2 z-10 text-red-500 hover:text-red-700 p-1" title="Supprimer">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+                ` : ''}
+                <div>
+                    <div class="flex items-center gap-2 text-blue-600 mb-2">
+                        <i data-lucide="file-text" class="w-6 h-6"></i>
+                        <h3 class="font-bold text-sm text-gray-800 pr-6">${escapeHtml(doc.title)}</h3>
+                    </div>
+                    <p class="text-xs text-gray-400 mb-3">Ajouté le ${doc.date}</p>
+                    
+                    <div class="w-full h-96 bg-gray-100 rounded border mb-3 overflow-hidden">
+                        <iframe src="${fileUrl}#view=FitH&toolbar=0" class="w-full h-full border-0"></iframe>
+                    </div>
+                </div>
+
+                <div class="flex gap-2">
+                    <a href="${fileUrl}" target="_blank" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-2 text-center rounded text-xs flex justify-center items-center gap-1 transition">
+                        <i data-lucide="eye" class="w-4 h-4"></i> Plein écran
+                    </a>
+                    <a href="${fileUrl}" download="${escapeHtml(doc.title)}.pdf" class="flex-1 bg-blue-50 text-blue-600 hover:bg-blue-100 font-semibold py-2 text-center rounded text-xs flex justify-center items-center gap-1 transition">
+                        <i data-lucide="download" class="w-4 h-4"></i> Télécharger
+                    </a>
+                </div>
             </div>
-        </div>
-    `).join('');
+        `;
+    }).join('');
 
     if (window.lucide) lucide.createIcons();
 }
 
-function renderMediaGrid() {
+async function renderMediaGrid() {
     const grid = document.getElementById('mediaGrid');
     if (!grid) return;
 
-    if (state.media.length === 0) {
+    let mediaList = [];
+    try {
+        mediaList = await getAllFromStore("mediaStore");
+    } catch (e) {
+        console.error("Erreur de lecture des médias", e);
+    }
+
+    if (mediaList.length === 0) {
         grid.innerHTML = `<p class="text-xs text-gray-500 col-span-3 text-center py-8">Aucun média publié.</p>`;
         return;
     }
 
-    grid.innerHTML = state.media.map(m => {
+    grid.innerHTML = mediaList.map(m => {
+        const fileUrl = URL.createObjectURL(m.fileBlob);
+        activeBlobUrls.push(fileUrl); // Suivi de l'URL pour éviter la fuite mémoire
         let mediaHtml = '';
 
         if (m.type && m.type.startsWith('image')) {
-            mediaHtml = `<img src="${m.url}" class="max-h-48 mx-auto rounded shadow-sm object-cover">`;
+            mediaHtml = `<img src="${fileUrl}" class="max-h-48 mx-auto rounded shadow-sm object-cover">`;
         } else if (m.type && m.type.startsWith('video')) {
             mediaHtml = `
                 <video controls class="w-full max-h-48 rounded shadow-sm bg-black">
-                    <source src="${m.url}" type="${m.type}">
+                    <source src="${fileUrl}" type="${m.type}">
                     Votre navigateur ne supporte pas le lecteur vidéo.
                 </video>`;
         } else {
-            mediaHtml = `<a href="${m.url}" target="_blank" class="text-blue-600 underline text-xs font-semibold">Visionner / Télécharger le média</a>`;
+            mediaHtml = `<a href="${fileUrl}" target="_blank" class="text-blue-600 underline text-xs font-semibold">Visionner / Télécharger le média</a>`;
         }
 
         return `
@@ -825,8 +914,12 @@ function deleteAttendanceRecord(recordId) {
 // ==========================================
 function toggleAdminMode() {
     if (state.isAdmin) {
+        const confirmation = confirm("Voulez-vous vraiment vous déconnecter du mode administrateur ?");
+        if (!confirmation) { return; }
+
         state.isAdmin = false;
         localStorage.removeItem('campus_is_admin');
+        localStorage.removeItem('campus_jwt_token');
         window.location.reload();
     } else {
         openAdminAuthModal();
@@ -842,7 +935,7 @@ function closeAdminAuthModal() {
     document.getElementById('adminAuthModal').classList.add('hidden');
 }
 
-function applyAdminUIState() {
+async function applyAdminUIState() {
     const btn = document.getElementById('adminToggle');
     const adminCols = document.querySelectorAll('.admin-col, .admin-only');
 
@@ -862,8 +955,8 @@ function applyAdminUIState() {
 
     renderAttendanceTable();
     renderProfilesTable();
-    renderCoursesGrid();
-    renderMediaGrid();
+    await renderCoursesGrid();
+    await renderMediaGrid();
 }
 
 function openChangePasswordModal() {
@@ -1145,8 +1238,6 @@ function saveState() {
     localStorage.setItem('campus_students', JSON.stringify(state.students));
     localStorage.setItem('campus_attendance', JSON.stringify(state.attendanceRecords));
     localStorage.setItem('campus_courses', JSON.stringify(state.courses));
-    localStorage.setItem('campus_documents', JSON.stringify(state.documents));
-    localStorage.setItem('campus_media', JSON.stringify(state.media));
 }
 
 function renderStarsHtml(rating) {
@@ -1198,4 +1289,15 @@ function showCustomAlert(title, message, type = 'info') {
 function closeCustomAlert() {
     const modal = document.getElementById('customAlertModal');
     if (modal) modal.classList.add('hidden');
+}
+
+// ==========================================
+// SUPPORT JWT FRONTEND
+// ==========================================
+function getAuthHeaders() {
+    const token = localStorage.getItem('campus_jwt_token');
+    return {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+    };
 }
