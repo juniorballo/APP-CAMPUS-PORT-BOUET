@@ -1,7 +1,6 @@
 {
   "name": "campus-port-bouet",
   "version": "1.0.0",
-  "description": "Application Campus Port-Bouet",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

@@ -7,31 +7,25 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 const DATA_FILE = path.join(__dirname, "data.json");
-const defaultData = { 
-    students: [], 
-    attendance: [], 
-    courses: ["Doctrine & Alliances", "Le Livre de Mormon", "Histoire de l Eglise", "Principes de l Evangile"] 
+const initialData = {
+    students: [],
+    attendance: [],
+    courses: ["Doctrine & Alliances", "Le Livre de Mormon", "Histoire de l Eglise", "Principes de l Evangile"]
 };
 
 if (!fs.existsSync(DATA_FILE)) {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(defaultData, null, 2));
-} else {
-    try {
-        const fileData = JSON.parse(fs.readFileSync(DATA_FILE, "utf8"));
-        if (!fileData.courses || fileData.courses.length === 0) {
-            fileData.courses = defaultData.courses;
-            fs.writeFileSync(DATA_FILE, JSON.stringify(fileData, null, 2));
-        }
-    } catch (e) {
-        fs.writeFileSync(DATA_FILE, JSON.stringify(defaultData, null, 2));
-    }
+    fs.writeFileSync(DATA_FILE, JSON.stringify(initialData, null, 2));
 }
 
 app.get("/api/data", (req, res) => {
     try {
-        res.json(JSON.parse(fs.readFileSync(DATA_FILE, "utf8")));
+        if (!fs.existsSync(DATA_FILE)) {
+            fs.writeFileSync(DATA_FILE, JSON.stringify(initialData, null, 2));
+        }
+        const data = JSON.parse(fs.readFileSync(DATA_FILE, "utf8"));
+        res.json(data);
     } catch (err) {
-        res.status(500).json({ error: "Erreur de lecture" });
+        res.json(initialData);
     }
 });
 
@@ -40,7 +34,7 @@ app.post("/api/data", (req, res) => {
         fs.writeFileSync(DATA_FILE, JSON.stringify(req.body, null, 2));
         res.json({ success: true });
     } catch (err) {
-        res.status(500).json({ error: "Erreur d enregistrement" });
+        res.status(500).json({ error: "Erreur enregistrement" });
     }
 });
 

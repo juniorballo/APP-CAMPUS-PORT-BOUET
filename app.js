@@ -16,29 +16,25 @@ async function loadData() {
 }
 
 function populateCourses() {
-    const courseSelects = document.querySelectorAll("select");
-    courseSelects.forEach(select => {
-        // Identifier le select des cours
-        if (select.id.includes("cours") || select.getAttribute("name")?.includes("cours") || select.innerHTML.trim() === "" || select.options.length <= 1) {
-            const currentVal = select.value;
-            select.innerHTML = `<option value="">-- Sélectionnez un cours --</option>`;
-            if (appData.courses && Array.isArray(appData.courses)) {
-                appData.courses.forEach(course => {
-                    const opt = document.createElement("option");
-                    opt.value = course;
-                    opt.textContent = course;
-                    select.appendChild(opt);
-                });
-            }
-            select.value = currentVal;
+    const selects = document.querySelectorAll("select");
+    selects.forEach(select => {
+        const currentVal = select.value;
+        select.innerHTML = `<option value="">-- Sélectionnez un cours --</option>`;
+        if (appData.courses && appData.courses.length > 0) {
+            appData.courses.forEach(c => {
+                const opt = document.createElement("option");
+                opt.value = c;
+                opt.textContent = c;
+                select.appendChild(opt);
+            });
         }
+        select.value = currentVal;
     });
 }
 
 function switchTab(tabId) {
     document.querySelectorAll("main > section").forEach(sec => sec.classList.add("hidden"));
     document.querySelectorAll("nav button").forEach(btn => btn.classList.remove("active-tab", "text-blue-600"));
-    
     const targetSec = document.getElementById("sec-" + tabId);
     const targetBtn = document.getElementById("tab-" + tabId);
     if (targetSec) targetSec.classList.remove("hidden");
