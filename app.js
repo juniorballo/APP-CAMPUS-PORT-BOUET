@@ -1,4 +1,4 @@
-let appData = { students: [], attendance: [], courses: ["Doctrine & Alliances", "Le Livre de Mormon", "Histoire de l Eglise"] };
+let appData = { students: [], attendance: [], courses: [] };
 let isAdmin = localStorage.getItem("campus_is_admin") === "true";
 
 async function loadData() {
@@ -6,12 +6,33 @@ async function loadData() {
         const res = await fetch("/api/data");
         if (res.ok) {
             const data = await res.json();
-            if (data && data.courses) appData = data;
+            if (data) appData = data;
         }
     } catch (e) {
-        console.log("Mode local / Erreur chargement API", e);
+        console.log("Erreur chargement API", e);
     }
     updateUI();
+    populateCourses();
+}
+
+function populateCourses() {
+    const courseSelects = document.querySelectorAll("select");
+    courseSelects.forEach(select => {
+        // Identifier le select des cours
+        if (select.id.includes("cours") || select.getAttribute("name")?.includes("cours") || select.innerHTML.trim() === "" || select.options.length <= 1) {
+            const currentVal = select.value;
+            select.innerHTML = `<option value="">-- Sélectionnez un cours --</option>`;
+            if (appData.courses && Array.isArray(appData.courses)) {
+                appData.courses.forEach(course => {
+                    const opt = document.createElement("option");
+                    opt.value = course;
+                    opt.textContent = course;
+                    select.appendChild(opt);
+                });
+            }
+            select.value = currentVal;
+        }
+    });
 }
 
 function switchTab(tabId) {
