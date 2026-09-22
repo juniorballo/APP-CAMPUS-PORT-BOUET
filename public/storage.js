@@ -1,0 +1,1 @@
+const StorageManager = { save(key, data) { localStorage.setItem(key, JSON.stringify(data)); fetch('/api/data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }).catch(() => {}); }, load(key, fallback = {}) { const local = localStorage.getItem(key); return local ? JSON.parse(local) : fallback; } };
