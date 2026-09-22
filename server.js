@@ -13,20 +13,23 @@ const initialData = {
     courses: ["Doctrine & Alliances", "Le Livre de Mormon", "Histoire de l Eglise", "Principes de l Evangile"]
 };
 
-if (!fs.existsSync(DATA_FILE)) {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(initialData, null, 2));
+// Sécurisation totale pour éviter tout plantage (Exit status 1) au démarrage
+try {
+    if (!fs.existsSync(DATA_FILE)) {
+        fs.writeFileSync(DATA_FILE, JSON.stringify(initialData, null, 2));
+    }
+} catch (e) {
+    console.log("Mode lecture seule ou erreur fichier :", e.message);
 }
 
 app.get("/api/data", (req, res) => {
     try {
-        if (!fs.existsSync(DATA_FILE)) {
-            fs.writeFileSync(DATA_FILE, JSON.stringify(initialData, null, 2));
+        if (fs.existsSync(DATA_FILE)) {
+            const data = JSON.parse(fs.readFileSync(DATA_FILE, "utf8"));
+            return res.json(data);
         }
-        const data = JSON.parse(fs.readFileSync(DATA_FILE, "utf8"));
-        res.json(data);
-    } catch (err) {
-        res.json(initialData);
-    }
+    } catch (err) {}
+    res.json(initialData);
 });
 
 app.post("/api/data", (req, res) => {
