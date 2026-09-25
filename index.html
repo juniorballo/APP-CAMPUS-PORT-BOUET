@@ -5,15 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Campus Port-Bouët - Gestion & Émargement</title>
-    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- SheetJS (XLSX) pour l'exportation Excel -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <!-- html2canvas pour la capture d'écran dynamique -->
     <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         .active-tab {
@@ -31,7 +26,6 @@
             font-family: 'Inter', sans-serif;
             box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
         }
-
         .footer-content {
             max-width: 800px;
             margin: 0 auto;
@@ -40,7 +34,6 @@
             align-items: center;
             gap: 8px;
         }
-
         .footer-badge {
             display: inline-flex;
             align-items: center;
@@ -55,28 +48,15 @@
             border-radius: 9999px;
             margin-bottom: 4px;
         }
-
         .pulse-dot {
             width: 6px;
             height: 6px;
             background-color: #4f46e5;
             border-radius: 50%;
-            box-shadow: 0 0 0 rgba(79, 70, 229, 0.4);
             animation: pulse 2s infinite;
         }
-
-        .footer-copy {
-            font-size: 13px;
-            color: #64748b;
-            margin: 0;
-        }
-
-        .footer-author {
-            font-size: 13px;
-            color: #475569;
-            margin: 0;
-        }
-
+        .footer-copy { font-size: 13px; color: #64748b; margin: 0; }
+        .footer-author { font-size: 13px; color: #475569; margin: 0; }
         .highlight-author {
             font-weight: 700;
             background: linear-gradient(90deg, #4f46e5, #0ea5e9);
@@ -85,31 +65,17 @@
             transition: transform 0.3s ease;
             display: inline-block;
         }
-
-        .highlight-author:hover {
-            transform: scale(1.05);
-        }
-
+        .highlight-author:hover { transform: scale(1.05); }
         @keyframes pulse {
-            0% {
-                transform: scale(0.95);
-                box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.7);
-            }
-            70% {
-                transform: scale(1);
-                box-shadow: 0 0 0 6px rgba(79, 70, 229, 0);
-            }
-            100% {
-                transform: scale(0.95);
-                box-shadow: 0 0 0 0 rgba(79, 70, 229, 0);
-            }
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(79, 70, 229, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(79, 70, 229, 0); }
         }
     </style>
     <script src='storage.js'></script>
 </head>
 <body class="bg-gray-50 text-gray-800 font-sans min-h-screen flex flex-col">
 
-<!-- En-tête / Navigation -->
 <header class="bg-blue-900 text-white shadow-md">
     <div class="container mx-auto px-4 py-4 flex flex-col md:flex-row justify-between items-center gap-4 text-center md:text-left">
         <div class="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-3">
@@ -133,39 +99,29 @@
     </div>
 </header>
 
-<!-- Navigation par Onglets -->
 <nav class="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-10">
     <div class="container mx-auto px-4 flex space-x-8 overflow-x-auto">
         <button onclick="switchTab('presence')" id="tab-presence" class="active-tab py-3 px-2 flex items-center gap-2 text-sm whitespace-nowrap">
             <i data-lucide="check-square" class="w-4 h-4"></i> Émargement / Présence
         </button>
-
         <button onclick="switchTab('profiles')" id="tab-profiles" class="hidden admin-col py-3 px-2 flex items-center gap-2 text-sm text-gray-500 hover:text-blue-600 whitespace-nowrap">
             <i data-lucide="users" class="w-4 h-4"></i> Annuaire des Étudiants
         </button>
-
         <button onclick="switchTab('cours')" id="tab-cours" class="py-3 px-2 flex items-center gap-2 text-sm text-gray-500 hover:text-blue-600 whitespace-nowrap">
             <i data-lucide="book-open" class="w-4 h-4"></i> Cours & Supports PDF
         </button>
-
         <button onclick="switchTab('media')" id="tab-media" class="py-3 px-2 flex items-center gap-2 text-sm text-gray-500 hover:text-blue-600 whitespace-nowrap">
             <i data-lucide="sparkles" class="w-4 h-4"></i> Espace Inspirant
         </button>
-
         <button onclick="switchTab('stats')" id="tab-stats" class="hidden admin-col py-3 px-2 flex items-center gap-2 text-sm text-gray-500 hover:text-blue-600 whitespace-nowrap">
             <i data-lucide="bar-chart-3" class="w-4 h-4"></i> Statistiques & Paroisses
         </button>
     </div>
 </nav>
 
-<!-- Contenu Principal -->
 <main class="container mx-auto px-4 py-6 flex-grow">
-
-    <!-- ONGLET 1 : ÉMARGEMENT RAPIDE ET PRÉSENCES -->
     <section id="sec-presence" class="space-y-6">
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-            <!-- Formulaire d'émargement -->
             <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 lg:col-span-1 space-y-4">
                 <div class="flex justify-between items-center">
                     <h2 class="text-lg font-bold text-blue-900 flex items-center gap-2">
@@ -185,12 +141,10 @@
                     <div class="relative">
                         <label class="block text-xs font-semibold text-gray-600 mb-1">Rechercher mon nom *</label>
                         <div class="relative">
-                            <input type="text" id="studentSearchInput" oninput="filterStudents()" placeholder="Tapez votre nom ici..." autocomplete="off" class="w-full p-2.5 pl-9 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-sm font-semibold text-gray-800 capitalize">
+                            <input type="text" id="studentSearchInput" placeholder="Tapez votre nom ici..." autocomplete="off" class="w-full p-2.5 pl-9 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-sm font-semibold text-gray-800 capitalize">
                             <i data-lucide="search" class="w-4 h-4 text-gray-400 absolute left-3 top-3"></i>
                         </div>
-
                         <div id="searchResults" class="absolute z-20 w-full bg-white border border-gray-300 rounded-b shadow-lg max-h-48 overflow-y-auto hidden mt-1"></div>
-
                         <input type="hidden" id="selectedStudentId" required>
                         <p class="text-[11px] text-gray-400 mt-1">Nom introuvable ? Cliquez sur « Profil » ci-dessus.</p>
                     </div>
@@ -204,6 +158,15 @@
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1">Cours du jour *</label>
                         <select id="courseSelect" required class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-sm"></select>
+                    </div>
+
+                    <!-- Champ Admin pour émargement rétroactif -->
+                    <div class="admin-only hidden bg-amber-50 p-3 rounded-md border border-amber-200">
+                        <label class="block text-xs font-semibold text-amber-900 mb-1 flex items-center gap-1">
+                            <i data-lucide="calendar-days" class="w-3.5 h-3.5"></i> Date d'émargement (Rétroactif - Admin)
+                        </label>
+                        <input type="date" id="adminAttendanceDate" class="w-full p-2 border border-amber-300 rounded text-xs font-semibold focus:ring-2 focus:ring-amber-500 bg-white">
+                        <p class="text-[10px] text-amber-700 mt-1">Laissez vide pour pointer à la date du jour.</p>
                     </div>
 
                     <div>
@@ -223,7 +186,6 @@
                 </form>
             </div>
 
-            <!-- Tableau d'émargement -->
             <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 lg:col-span-2 flex flex-col justify-between">
                 <div>
                     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3 bg-gray-50 p-3 rounded-md border">
@@ -268,7 +230,7 @@
         </div>
     </section>
 
-    <!-- ONGLET 2 : ANNUAIRE -->
+    <!-- Autres sections conservées (Profils, Cours, Media, Stats) -->
     <section id="sec-profiles" class="space-y-6 hidden">
         <div class="flex justify-between items-center bg-white p-4 rounded-lg shadow-sm border">
             <div>
@@ -279,7 +241,6 @@
                 <i data-lucide="user-plus" class="w-4 h-4"></i> Ajouter un Étudiant
             </button>
         </div>
-
         <div class="bg-white p-6 rounded-lg shadow-sm border overflow-x-auto">
             <table class="w-full text-left border-collapse text-sm">
                 <thead>
@@ -297,7 +258,6 @@
         </div>
     </section>
 
-    <!-- ONGLET 3 : COURS EN LIGNE -->
     <section id="sec-cours" class="space-y-6 hidden">
         <div class="flex justify-between items-center bg-white p-4 rounded-lg shadow-sm border">
             <div>
@@ -311,7 +271,6 @@
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="coursesGrid"></div>
     </section>
 
-    <!-- ONGLET 4 : MÉDIATHÈQUE -->
     <section id="sec-media" class="space-y-6 hidden">
         <div class="flex justify-between items-center bg-white p-4 rounded-lg shadow-sm border">
             <div>
@@ -325,7 +284,6 @@
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="mediaGrid"></div>
     </section>
 
-    <!-- ONGLET 5 : STATISTIQUES & PROGRESSION -->
     <section id="sec-stats" class="space-y-6 hidden">
         <div class="flex justify-between items-center bg-white p-4 rounded-lg shadow-sm border">
             <div>
@@ -338,7 +296,6 @@
         </div>
 
         <div id="statsCaptureArea" class="space-y-6 p-2 bg-gray-50 rounded-xl">
-            <!-- KPIS -->
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                 <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200 text-center">
                     <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Total Étudiants</p>
@@ -362,7 +319,6 @@
                 </div>
             </div>
 
-            <!-- GRAPHIQUES -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
                     <h3 class="text-sm font-bold text-gray-800 mb-4">Répartition des étudiants par Paroisse</h3>
@@ -370,7 +326,6 @@
                         <canvas id="parishPieChart"></canvas>
                     </div>
                 </div>
-
                 <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
                     <h3 class="text-sm font-bold text-gray-800 mb-4">Présence par cours</h3>
                     <div class="relative" style="height: 280px;">
@@ -379,26 +334,21 @@
                 </div>
             </div>
 
-            <!-- FILTRES STATISTIQUES & RECHERCHE -->
             <div class="bg-white p-5 rounded-lg shadow-sm border border-gray-200 space-y-4">
                 <h3 class="text-md font-bold text-blue-900 flex items-center gap-2 border-b pb-2">
                     <i data-lucide="filter" class="w-5 h-5 text-blue-600"></i> Suivi & Progression Détaillée
                 </h3>
-
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <!-- Recherche par Nom -->
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1">Rechercher par nom d'étudiant / ami</label>
                         <div class="relative">
-                            <input type="text" id="statSearchName" oninput="renderProgressionTable()" placeholder="Entrez un nom..." class="w-full p-2 pl-8 border border-gray-300 rounded text-xs focus:ring-2 focus:ring-blue-500">
+                            <input type="text" id="statSearchName" placeholder="Entrez un nom..." class="w-full p-2 pl-8 border border-gray-300 rounded text-xs focus:ring-2 focus:ring-blue-500">
                             <i data-lucide="search" class="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-2.5"></i>
                         </div>
                     </div>
-
-                    <!-- Filtre par Paroisse -->
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1">Filtrer par Paroisse / Statut</label>
-                        <select id="statParishFilter" onchange="renderProgressionTable()" class="w-full p-2 border border-gray-300 rounded text-xs focus:ring-2 focus:ring-blue-500">
+                        <select id="statParishFilter" class="w-full p-2 border border-gray-300 rounded text-xs focus:ring-2 focus:ring-blue-500">
                             <option value="all">Toutes les paroisses & Amis</option>
                             <option value="PETIT BASSAM">PETIT BASSAM</option>
                             <option value="PORT BOUET">PORT BOUET</option>
@@ -411,16 +361,13 @@
                             <option value="AMIS">AMIS</option>
                         </select>
                     </div>
-
-                    <!-- Filtre par Cours -->
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1">Cours concerné</label>
-                        <select id="statCourse" onchange="renderProgressionTable()" class="w-full p-2 border border-gray-300 rounded text-xs focus:ring-2 focus:ring-blue-500"></select>
+                        <select id="statCourse" class="w-full p-2 border border-gray-300 rounded text-xs focus:ring-2 focus:ring-blue-500"></select>
                     </div>
                 </div>
             </div>
 
-            <!-- TABLEAU DE PROGRESSION -->
             <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 overflow-x-auto">
                 <table class="w-full text-left border-collapse text-sm">
                     <thead>
@@ -438,58 +385,8 @@
             </div>
         </div>
     </section>
-
 </main>
 
-<!-- MODALS -->
-
-<!-- Modal Connexion Administrateur -->
-<div id="adminAuthModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-lg p-6 max-w-sm w-full space-y-4 shadow-xl">
-        <h3 class="text-md font-bold text-gray-800 flex items-center gap-2">
-            <i data-lucide="lock" class="w-5 h-5 text-blue-600"></i> Accès Administrateur
-        </h3>
-        <form onsubmit="handleAdminAuth(event)" class="space-y-3">
-            <div>
-                <label class="block text-xs font-semibold text-gray-600 mb-1">Mot de Passe Administrateur</label>
-                <input type="password" id="adminPasswordInput" required placeholder="Entrez le mot de passe..." class="w-full p-2 border rounded text-sm focus:ring-2 focus:ring-blue-500">
-            </div>
-            <div class="flex justify-end gap-2 pt-2 border-t">
-                <button type="button" onclick="closeAdminAuthModal()" class="px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-100 rounded">Annuler</button>
-                <button type="submit" class="px-3 py-1.5 text-xs bg-blue-600 text-white font-semibold rounded hover:bg-blue-700">Se connecter</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<!-- Modal Modification du Mot de Passe Admin -->
-<div id="changePasswordModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-lg p-6 max-w-sm w-full space-y-4 shadow-xl">
-        <h3 class="text-md font-bold text-gray-800 flex items-center gap-2">
-            <i data-lucide="key" class="w-5 h-5 text-blue-600"></i> Modifier le Mot de Passe Admin
-        </h3>
-        <form onsubmit="handleChangePassword(event)" class="space-y-3">
-            <div>
-                <label class="block text-xs font-semibold text-gray-600 mb-1">Mot de passe actuel</label>
-                <input type="password" id="currentPasswordInput" required class="w-full p-2 border rounded text-sm focus:ring-2 focus:ring-blue-500">
-            </div>
-            <div>
-                <label class="block text-xs font-semibold text-gray-600 mb-1">Nouveau mot de passe</label>
-                <input type="password" id="newPasswordInput" required class="w-full p-2 border rounded text-sm focus:ring-2 focus:ring-blue-500">
-            </div>
-            <div>
-                <label class="block text-xs font-semibold text-gray-600 mb-1">Confirmer le nouveau mot de passe</label>
-                <input type="password" id="confirmPasswordInput" required class="w-full p-2 border rounded text-sm focus:ring-2 focus:ring-blue-500">
-            </div>
-            <div class="flex justify-end gap-2 pt-2 border-t">
-                <button type="button" onclick="closeChangePasswordModal()" class="px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-100 rounded">Annuler</button>
-                <button type="submit" class="px-3 py-1.5 text-xs bg-blue-600 text-white font-semibold rounded hover:bg-blue-700">Enregistrer</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<!-- Modal Création de Profil -->
 <div id="profileModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center p-4 z-50">
     <div class="bg-white rounded-lg p-6 max-w-md w-full space-y-4 shadow-xl">
         <h3 class="text-md font-bold text-gray-800 flex items-center gap-2">
@@ -527,111 +424,22 @@
     </div>
 </div>
 
-<!-- Modal Modification Étudiant (Admin) -->
-<div id="editStudentModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-lg p-6 max-w-md w-full space-y-4 shadow-xl">
-        <h3 class="text-md font-bold text-gray-800 flex items-center gap-2">
-            <i data-lucide="edit-3" class="w-5 h-5 text-blue-600"></i> Modifier l'Étudiant
-        </h3>
-        <form onsubmit="saveStudentEdit(event)" class="space-y-3">
-            <input type="hidden" id="editStudentId">
-            <div>
-                <label class="block text-xs font-semibold text-gray-600 mb-1">Nom et Prénoms</label>
-                <input type="text" id="editStudentName" required class="w-full p-2 border rounded text-sm focus:ring-2 focus:ring-blue-500 capitalize">
-            </div>
-            <div>
-                <label class="block text-xs font-semibold text-gray-600 mb-1">Téléphone</label>
-                <input type="tel" id="editStudentPhone" required maxlength="10" pattern="[0-9]{10}" class="w-full p-2 border rounded text-sm focus:ring-2 focus:ring-blue-500">
-            </div>
-            <div>
-                <label class="block text-xs font-semibold text-gray-600 mb-1">Paroisse / Statut</label>
-                <select id="editStudentParish" required class="w-full p-2 border rounded text-sm focus:ring-2 focus:ring-blue-500">
-                    <option value="PETIT BASSAM">PETIT BASSAM</option>
-                    <option value="PORT BOUET">PORT BOUET</option>
-                    <option value="SIPIM">SIPIM</option>
-                    <option value="ADJOUFFOU">ADJOUFFOU</option>
-                    <option value="ATLANTIQUE">ATLANTIQUE</option>
-                    <option value="AERO CITE">AERO CITE</option>
-                    <option value="JEAN FOLLY 1">JEAN FOLLY 1</option>
-                    <option value="JEAN FOLLY 2">JEAN FOLLY 2</option>
-                    <option value="AMIS">AMIS</option>
-                </select>
-            </div>
-            <div class="flex justify-end gap-2 pt-2 border-t">
-                <button type="button" onclick="closeEditStudentModal()" class="px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-100 rounded">Annuler</button>
-                <button type="submit" class="px-3 py-1.5 text-xs bg-blue-600 text-white font-semibold rounded hover:bg-blue-700">Mettre à jour</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<!-- Modal Modification Émargement (Admin) -->
-<div id="editAttendanceModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-lg p-6 max-w-md w-full space-y-4 shadow-xl">
-        <h3 class="text-md font-bold text-gray-800 flex items-center gap-2">
-            <i data-lucide="edit-3" class="w-5 h-5 text-blue-600"></i> Modifier l'Émargement
-        </h3>
-        <form onsubmit="saveAttendanceEdit(event)" class="space-y-3">
-            <input type="hidden" id="editAttendanceIndex">
-            <div>
-                <label class="block text-xs font-semibold text-gray-600 mb-1">Nom et Prénoms</label>
-                <input type="text" id="editAttName" required class="w-full p-2 border rounded text-sm focus:ring-2 focus:ring-blue-500 capitalize">
-            </div>
-            <div>
-                <label class="block text-xs font-semibold text-gray-600 mb-1">Téléphone</label>
-                <input type="tel" id="editAttPhone" required maxlength="10" pattern="[0-9]{10}" class="w-full p-2 border rounded text-sm focus:ring-2 focus:ring-blue-500">
-            </div>
-            <div>
-                <label class="block text-xs font-semibold text-gray-600 mb-1">Paroisse / Statut</label>
-                <select id="editAttParish" required class="w-full p-2 border rounded text-sm focus:ring-2 focus:ring-blue-500">
-                    <option value="PETIT BASSAM">PETIT BASSAM</option>
-                    <option value="PORT BOUET">PORT BOUET</option>
-                    <option value="SIPIM">SIPIM</option>
-                    <option value="ADJOUFFOU">ADJOUFFOU</option>
-                    <option value="ATLANTIQUE">ATLANTIQUE</option>
-                    <option value="AERO CITE">AERO CITE</option>
-                    <option value="JEAN FOLLY 1">JEAN FOLLY 1</option>
-                    <option value="JEAN FOLLY 2">JEAN FOLLY 2</option>
-                    <option value="AMIS">AMIS</option>
-                </select>
-            </div>
-            <div>
-                <label class="block text-xs font-semibold text-gray-600 mb-1">Cours</label>
-                <select id="editAttCourse" required class="w-full p-2 border rounded text-sm focus:ring-2 focus:ring-blue-500"></select>
-            </div>
-            <div>
-                <label class="block text-xs font-semibold text-gray-600 mb-1">Avis (1 à 5 étoiles)</label>
-                <input type="number" id="editAttRating" min="1" max="5" required class="w-full p-2 border rounded text-sm focus:ring-2 focus:ring-blue-500">
-            </div>
-            <div class="flex justify-end gap-2 pt-2 border-t">
-                <button type="button" onclick="closeEditAttendanceModal()" class="px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-100 rounded">Annuler</button>
-                <button type="submit" class="px-3 py-1.5 text-xs bg-blue-600 text-white font-semibold rounded hover:bg-blue-700">Sauvegarder</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<!-- Modal Gestion des Cours (Admin) -->
 <div id="courseModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center p-4 z-50">
     <div class="bg-white rounded-lg p-6 max-w-md w-full space-y-4 shadow-xl">
         <h3 class="text-md font-bold text-gray-800 flex items-center gap-2">
             <i data-lucide="book-open" class="w-5 h-5 text-indigo-600"></i> Gestion des Cours
         </h3>
-
         <form onsubmit="addCourse(event)" class="flex gap-2">
             <input type="text" id="newCourseTitleInput" placeholder="Nouveau titre de cours..." required class="flex-grow p-2 border rounded text-xs focus:ring-2 focus:ring-indigo-500">
             <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-3 py-2 rounded">Ajouter</button>
         </form>
-
         <div id="courseManagerList" class="space-y-2 max-h-48 overflow-y-auto"></div>
-
         <div class="flex justify-end pt-2 border-t">
             <button type="button" onclick="closeCourseModal()" class="px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-100 rounded">Fermer</button>
         </div>
     </div>
 </div>
 
-<!-- Modal Upload de Contenu (Admin) -->
 <div id="uploadModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center p-4 z-50">
     <div class="bg-white rounded-lg p-6 max-w-md w-full space-y-4 shadow-xl">
         <h3 class="text-md font-bold text-gray-800 flex items-center gap-2">
@@ -655,37 +463,37 @@
     </div>
 </div>
 
-<!-- Modal Alert Perso -->
-<div id="customAlertModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-lg p-6 max-w-xs w-full text-center space-y-4 shadow-xl">
-        <div id="alertIconContainer" class="w-16 h-16 rounded-full mx-auto flex items-center justify-center bg-blue-100 text-blue-600">
-            <i id="alertIcon" data-lucide="info" class="w-8 h-8"></i>
+<!-- Modale Professionnelle Personnalisée -->
+<div id="customModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 transform transition-all animate-in fade-in zoom-in duration-200 border border-gray-100">
+        <div class="flex items-center gap-3 mb-4 text-blue-600">
+            <div id="modalIconContainer" class="p-3 bg-blue-50 rounded-xl">
+                <i data-lucide="shield-check" class="w-6 h-6 text-blue-600"></i>
+            </div>
+            <h3 id="modalTitle" class="text-lg font-bold text-gray-800">Authentification Admin</h3>
         </div>
-        <div>
-            <h4 id="alertTitle" class="font-bold text-gray-800 text-base">Information</h4>
-            <p id="alertMessage" class="text-xs text-gray-600 mt-1">Message d'alerte.</p>
+        <p id="modalMessage" class="text-gray-600 text-sm mb-5">Veuillez entrer le mot de passe administrateur :</p>
+
+        <div id="modalInputContainer" class="mb-5 hidden">
+            <input type="password" id="modalInputField" class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" placeholder="Saisissez votre valeur ici...">
         </div>
-        <button onclick="closeCustomAlert()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded text-xs transition">
-            D'accord
-        </button>
+
+        <div class="flex justify-end gap-3">
+            <button id="modalCancelBtn" onclick="closeCustomModal(false)" class="px-5 py-2.5 rounded-xl text-gray-600 hover:bg-gray-100 text-xs font-semibold transition-all">Annuler</button>
+            <button id="modalConfirmBtn" onclick="closeCustomModal(true)" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-md transition-all">Confirmer</button>
+        </div>
     </div>
 </div>
 
 <script src="app.js"></script>
 
-<!-- Section Copyright -->
 <footer class="attractive-footer">
     <div class="footer-content">
-        <!-- Badge -->
         <div class="footer-badge">
             <span class="pulse-dot"></span>
             Campus Port-Bouët
         </div>
-
-        <!-- Copyright -->
         <p class="footer-copy">&copy; 2026 Campus Port-Bouët. Tous droits réservés.</p>
-
-        <!-- Auteur -->
         <p class="footer-author">
             Conçu et développé par <span class="highlight-author">BALLO BI JUNIOR</span>
         </p>
