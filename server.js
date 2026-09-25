@@ -152,8 +152,7 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
         res.status(500).json({ error: "Erreur interne lors de l'upload du fichier." });
     }
 });
-
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`Server running on port ${PORT}`);
 });
